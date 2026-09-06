@@ -1,8 +1,72 @@
-/*
+.ns-calendar {
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 12px;
+	box-sizing: border-box;
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.ns-calendar-header {
+	display: grid;
+	grid-template-columns: auto 1fr auto;
+	align-items: center;
+	gap: 8px;
+}
 
-If your plugin does not need CSS, delete this file.
+.ns-calendar-header strong {
+	text-align: center;
+}
 
-*/
+.ns-calendar-header button {
+	min-width: 32px;
+	min-height: 32px;
+}
+
+.ns-calendar-weekdays,
+.ns-calendar-grid {
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.ns-calendar-weekdays {
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	text-align: center;
+}
+
+.ns-calendar-grid {
+	flex: 1;
+	grid-auto-rows: minmax(56px, 1fr);
+	border-top: 1px solid var(--background-modifier-border);
+	border-left: 1px solid var(--background-modifier-border);
+}
+
+.ns-calendar-day {
+	position: relative;
+	padding: 6px;
+	border-right: 1px solid var(--background-modifier-border);
+	border-bottom: 1px solid var(--background-modifier-border);
+	cursor: pointer;
+}
+
+.ns-calendar-day:hover {
+	background: var(--background-modifier-hover);
+}
+
+.ns-calendar-day-number {
+	font-size: var(--font-ui-small);
+}
+
+.ns-calendar-count {
+	position: absolute;
+	right: 6px;
+	bottom: 6px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.ns-calendar-day.has-notes .ns-calendar-day-number {
+	font-weight: 600;
+	color: var(--interactive-accent);
+}

@@ -1,11 +1,1 @@
-{
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
-	"version": "1.0.0",
-	"minAppVersion": "1.0.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
-	"isDesktopOnly": false
-}
+{"id":"power-tools","name":"Power Tools","version":"0.2.0","minAppVersion":"1.8.0","description":"Optional advanced navigation tools including calendar, folder notes, and lightweight icon customization.","author":"Navigation Suite","isDesktopOnly":false}

@@ -1,9 +1,9 @@
 import { Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { POWER_TOOLS_API_VERSION, type PowerToolsApi, type PowerToolsCapabilities } from '@navigation-suite/contracts';
-import { CalendarView, CALENDAR_VIEW_TYPE } from './views/CalendarView';
-import { FolderNoteService } from './services/FolderNoteService';
-import { IconService } from './services/IconService';
-import { DEFAULT_POWER_TOOLS_SETTINGS, normalizePowerToolsSettings, type PowerToolsSettings } from './settings/types';
+import { CalendarView, CALENDAR_VIEW_TYPE } from './CalendarView';
+import { FolderNoteService } from './FolderNoteService';
+import { IconService } from './IconService';
+import { DEFAULT_POWER_TOOLS_SETTINGS, normalizePowerToolsSettings, type PowerToolsSettings } from './types';
 
 export default class PowerToolsPlugin extends Plugin {
 	settings: PowerToolsSettings = DEFAULT_POWER_TOOLS_SETTINGS;

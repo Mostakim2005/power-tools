@@ -1,114 +1,104 @@
-import {
-	Editor,
-	MarkdownView,
-	MarkdownFileInfo,
-	Modal,
-	Notice,
-	Plugin,
-} from 'obsidian';
-import {
-	DEFAULT_SETTINGS,
-	MyPluginSettings,
-	SampleSettingTab,
-} from './settings';
+import { Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { POWER_TOOLS_API_VERSION, type PowerToolsApi, type PowerToolsCapabilities } from '@navigation-suite/contracts';
+import { CalendarView, CALENDAR_VIEW_TYPE } from './views/CalendarView';
+import { FolderNoteService } from './services/FolderNoteService';
+import { IconService } from './services/IconService';
+import { DEFAULT_POWER_TOOLS_SETTINGS, normalizePowerToolsSettings, type PowerToolsSettings } from './settings/types';
 
-// Remember to rename these classes and interfaces!
+export default class PowerToolsPlugin extends Plugin {
+	settings: PowerToolsSettings = DEFAULT_POWER_TOOLS_SETTINGS;
+	readonly apiVersion = POWER_TOOLS_API_VERSION;
+	readonly capabilities: PowerToolsCapabilities = {
+		apiVersion: POWER_TOOLS_API_VERSION,
+		calendar: true,
+		folderNotes: true,
+		folderIcons: true,
+	};
+	private folderNoteService!: FolderNoteService;
+	private iconService!: IconService;
+	readonly api: PowerToolsApi = {
+		capabilities: this.capabilities,
+		getFolderIcon: (path) => this.iconService?.getFolderIcon(path) ?? null,
+		setFolderIcon: (path, iconName) => this.iconService?.setFolderIcon(path, iconName) ?? Promise.reject(new Error('Power Tools is not ready.')),
+		openCalendar: () => this.openCalendar(),
+		createFolderNote: (folderPath) => this.folderNoteService?.createOrOpen(folderPath) ?? Promise.reject(new Error('Power Tools is not ready.')),
+	};
 
-export default class MyPlugin extends Plugin {
-	settings!: MyPluginSettings;
+	async onload(): Promise<void> {
+		this.settings = normalizePowerToolsSettings(await this.loadData());
 
-	async onload() {
-		await this.loadSettings();
+		this.folderNoteService = new FolderNoteService(this.app, () => this.settings);
+		this.iconService = new IconService(() => this.settings, () => this.saveSettings());
 
-		// This creates an icon in the left ribbon.
-		this.addRibbonIcon('dice', 'Sample', (_evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
+		this.registerView(CALENDAR_VIEW_TYPE, (leaf) => new CalendarView(leaf, this.app, () => this.settings));
+
+		this.addCommand({
+			id: 'open-calendar',
+			name: 'Open calendar',
+			callback: () => this.openCalendar(),
 		});
 
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status bar text');
-
-		// This adds a simple command that can be triggered anywhere
 		this.addCommand({
-			id: 'open-modal-simple',
-			name: 'Open modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			},
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'replace-selected',
-			name: 'Replace selected content',
-			editorCallback: (
-				editor: Editor,
-				_ctx: MarkdownView | MarkdownFileInfo,
-			) => {
-				editor.replaceSelection('Sample editor command');
-			},
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-modal-complex',
-			name: 'Open modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView =
-					this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
-
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
-				return false;
+			id: 'create-folder-note',
+			name: 'Create folder note',
+			checkCallback: (checking) => {
+				const folder = this.app.workspace.getActiveFile()?.parent;
+				if (!folder) return false;
+				if (!checking) void this.folderNoteService.createOrOpen(folder.path);
+				return true;
 			},
 		});
 
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(activeDocument, 'click', (_evt: MouseEvent) => {
-			new Notice('Click');
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(
-			window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000),
-		);
+		this.addSettingTab(new PowerToolsSettingTab(this.app, this));
 	}
 
-	onunload() {}
-
-	async loadSettings() {
-		this.settings = Object.assign(
-			{},
-			DEFAULT_SETTINGS,
-			(await this.loadData()) as Partial<MyPluginSettings>,
-		);
+	async openCalendar(): Promise<void> {
+		const existing = this.app.workspace.getLeavesOfType(CALENDAR_VIEW_TYPE)[0];
+		const leaf = existing ?? this.app.workspace.getLeaf('tab');
+		await leaf.setViewState({ type: CALENDAR_VIEW_TYPE, active: true });
+		this.app.workspace.revealLeaf(leaf);
 	}
 
-	async saveSettings() {
+	async saveSettings(): Promise<void> {
 		await this.saveData(this.settings);
+	}
+
+	onunload(): void {
+		this.app.workspace.detachLeavesOfType(CALENDAR_VIEW_TYPE);
 	}
 }
 
-class SampleModal extends Modal {
-	onOpen() {
-		const { contentEl } = this;
-		contentEl.setText('Woah!');
+class PowerToolsSettingTab extends PluginSettingTab {
+	constructor(app: Parameters<typeof PluginSettingTab>[0], private readonly plugin: PowerToolsPlugin) {
+		super(app, plugin);
 	}
 
-	onClose() {
-		const { contentEl } = this;
-		contentEl.empty();
+	display(): void {
+		const { containerEl } = this;
+		containerEl.empty();
+		containerEl.createEl('h2', { text: 'Power Tools' });
+
+		new Setting(containerEl)
+			.setName('Folder note name')
+			.setDesc('File created inside a folder when using the folder-note command.')
+			.addText((text) => text
+				.setPlaceholder('index')
+				.setValue(this.plugin.settings.folderNoteName)
+				.onChange(async (value) => {
+					this.plugin.settings.folderNoteName = value.trim() || 'index';
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Calendar start of week')
+			.setDesc('Choose Monday or Sunday as the first day in the calendar.')
+			.addDropdown((dropdown) => dropdown
+				.addOption('monday', 'Monday')
+				.addOption('sunday', 'Sunday')
+				.setValue(this.plugin.settings.calendarStartOfWeek)
+				.onChange(async (value) => {
+					this.plugin.settings.calendarStartOfWeek = value as PowerToolsSettings['calendarStartOfWeek'];
+					await this.plugin.saveSettings();
+				}));
 	}
 }
